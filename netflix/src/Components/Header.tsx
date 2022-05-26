@@ -1,21 +1,29 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import styled from "styled-components";
-import { motion } from "framer-motion";
+import { motion, useAnimation, useViewportScroll } from "framer-motion";
 
-const Nav = styled.nav`
+const Nav = styled(motion.nav)`
   display: flex;
   justify-content: space-between;
   align-items: center;
   position: fixed;
   width: 100%;
   top: 0;
-  background-color: black;
   height: 68px;
   padding: 0px 60px;
   font-size: 14px;
   color: white;
 `;
+
+const navVariants = {
+  top: {
+    backgroundColor: "rgba(0,0,0,0)",
+  },
+  scroll: {
+    backgroundColor: "rgba(0,0,0,1)",
+  },
+};
 
 const Col = styled.div`
   display: flex;
@@ -49,18 +57,22 @@ const StyledLink = styled(Link)<{ isActive: boolean }>`
   font-weight: ${(props) => props.isActive && "bold"};
 `;
 
-const Search = styled.span`
+const Search = styled.span<{ searchOpen: boolean }>`
   position: relative;
   display: flex;
   align-items: center;
   color: white;
   svg {
     height: 25px;
+    &:hover {
+      cursor: ${(props) => !props.searchOpen && "pointer"};
+    }
   }
 `;
 
 const Input = styled(motion.input)`
   position: absolute;
+  transition: all 50ms ease-in-out;
   transform-origin: right center;
   right: 0px;
   padding: 7px 10px 7px 40px;
@@ -74,13 +86,33 @@ const Input = styled(motion.input)`
 function Header() {
   const loaction = useLocation();
   const [searchOpen, setSearchOpen] = useState(false);
+  const inputAnimation = useAnimation();
+  const svgAnimation = useAnimation();
+  const navAnimation = useAnimation();
+  const { scrollY } = useViewportScroll();
 
   const toggleSearch = () => {
+    if (searchOpen) {
+      svgAnimation.start({ x: 0 });
+      inputAnimation.start({ scaleX: 0 });
+    } else {
+      svgAnimation.start({ x: -185 });
+      inputAnimation.start({ scaleX: 1 });
+    }
+
     setSearchOpen((prev) => !prev);
   };
 
+  useEffect(() => {
+    scrollY.onChange(() => {
+      scrollY.get() > 80
+        ? navAnimation.start("scroll")
+        : navAnimation.start("top");
+    });
+  }, [scrollY]);
+
   return (
-    <Nav>
+    <Nav variants={navVariants} initial="top" animate={navAnimation}>
       <Col>
         <Logo
           xmlns="http://www.w3.org/2000/svg"
@@ -107,10 +139,10 @@ function Header() {
         </Menu>
       </Col>
       <Col>
-        <Search>
+        <Search searchOpen={searchOpen}>
           <motion.svg
             onClick={toggleSearch}
-            animate={{ x: searchOpen ? -185 : 0 }}
+            animate={svgAnimation}
             transition={{ type: "linear" }}
             fill="currentColor"
             viewBox="0 0 20 20"
@@ -123,7 +155,8 @@ function Header() {
             ></path>
           </motion.svg>
           <Input
-            animate={{ scaleX: searchOpen ? 1 : 0 }}
+            initial={{ scaleX: 0 }}
+            animate={inputAnimation}
             placeholder="제목, 사람, 장르"
           ></Input>
         </Search>
