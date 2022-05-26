@@ -19,6 +19,8 @@ body {
 }
 button{
   cursor:pointer;
+  border: none;
+  background-color: inherit;
 }
 `;
 
