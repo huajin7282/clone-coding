@@ -16,6 +16,10 @@ ${reset}
 }
 body {
   font-family:'Noto Sans KR', sans-serif;
+  font-weight: 300;
+  color:${(props) => props.theme.white.darker};
+  background-color: black;
+  line-height: 1.2;
   cursor:default;
 }
 button{
