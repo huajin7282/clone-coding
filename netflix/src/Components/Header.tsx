@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import { motion, useAnimation, useViewportScroll } from "framer-motion";
+import { useForm } from "react-hook-form";
 
 const Nav = styled(motion.nav)`
   display: flex;
@@ -57,7 +58,7 @@ const StyledLink = styled(Link)<{ isActive: boolean }>`
   font-weight: ${(props) => props.isActive && "bold"};
 `;
 
-const Search = styled.span<{ searchOpen: boolean }>`
+const Search = styled.form<{ searchOpen: boolean }>`
   position: relative;
   display: flex;
   align-items: center;
@@ -83,12 +84,17 @@ const Input = styled(motion.input)`
   border: 1px solid ${(props) => props.theme.white.lighter};
 `;
 
+interface Form {
+  keyword: string;
+}
+
 function Header() {
+  const navigate = useNavigate();
   const loaction = useLocation();
-  const [searchOpen, setSearchOpen] = useState(false);
   const inputAnimation = useAnimation();
   const svgAnimation = useAnimation();
   const navAnimation = useAnimation();
+  const [searchOpen, setSearchOpen] = useState(false);
   const { scrollY } = useViewportScroll();
 
   const toggleSearch = () => {
@@ -101,6 +107,11 @@ function Header() {
     }
 
     setSearchOpen((prev) => !prev);
+  };
+
+  const { register, handleSubmit } = useForm<Form>();
+  const onValid = (data: Form) => {
+    navigate(`/search?keyword=${data.keyword}`);
   };
 
   useEffect(() => {
@@ -139,7 +150,7 @@ function Header() {
         </Menu>
       </Col>
       <Col>
-        <Search searchOpen={searchOpen}>
+        <Search onSubmit={handleSubmit(onValid)} searchOpen={searchOpen}>
           <motion.svg
             onClick={toggleSearch}
             animate={svgAnimation}
@@ -155,6 +166,7 @@ function Header() {
             ></path>
           </motion.svg>
           <Input
+            {...register("keyword", { required: true })}
             initial={{ scaleX: 0 }}
             animate={inputAnimation}
             placeholder="제목, 사람, 장르"
