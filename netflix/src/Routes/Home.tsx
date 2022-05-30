@@ -72,7 +72,7 @@ const Box = styled(motion.div)<{ bgPhoto: string }>`
 
 const Info = styled(motion.div)`
   padding: 10px;
-  background-color: ${(props) => props.theme.black.lighter};
+  background-color: ${(props) => props.theme.black.darker};
   opacity: 0;
   position: absolute;
   width: 100%;
@@ -87,10 +87,34 @@ const Modal = styled(motion.div)`
   position: absolute;
   width: 40vw;
   height: 80vh;
-  background-color: tomato;
+  background-color: ${(props) => props.theme.black.darker};
   right: 0;
   left: 0;
   margin: 0 auto;
+  overflow: hidden;
+  border-radius: 16px;
+`;
+
+const ModalCover = styled.div`
+  width: 100%;
+  height: 480px;
+  background-size: cover;
+  background-position: center center;
+`;
+
+const ModalTitle = styled.h2`
+  position: relative;
+  top: -132px;
+  padding: 20px;
+  color: ${(props) => props.theme.white.lighter};
+  font-size: 48px;
+`;
+
+const ModalOverview = styled.p`
+  position: relative;
+  top: -80px;
+  padding: 20px;
+  color: ${(props) => props.theme.white.lighter};
 `;
 
 const Overlay = styled(motion.div)`
@@ -176,6 +200,12 @@ function Home() {
     navigate(-1);
   };
 
+  const clickedMovie =
+    movieMatch?.params.movieId &&
+    data?.results.find(
+      (movie) => String(movie.id) === movieMatch.params.movieId
+    );
+
   return (
     <Wrapper>
       {isLoading ? (
@@ -204,7 +234,7 @@ function Home() {
                   .slice(offset * index, offset * index + offset)
                   .map((movie) => (
                     <Box
-                      layoutId={movie.id + ""}
+                      layoutId={String(movie.id)}
                       key={movie.id}
                       onClick={() => onBoxClicked(movie.id)}
                       whileHover="hover"
@@ -231,7 +261,22 @@ function Home() {
                 <Modal
                   layoutId={movieMatch.params.movieId}
                   style={{ top: scrollY.get() + 100 }}
-                />
+                >
+                  {clickedMovie && (
+                    <>
+                      <ModalCover
+                        style={{
+                          backgroundImage: `linear-gradient(to top, black, transparent), url(${makeImagePath(
+                            clickedMovie.backdrop_path
+                          )}
+                          )`,
+                        }}
+                      />
+                      <ModalTitle>{clickedMovie.title}</ModalTitle>
+                      <ModalOverview>{clickedMovie.overview}</ModalOverview>
+                    </>
+                  )}
+                </Modal>
               </>
             )}
           </AnimatePresence>
