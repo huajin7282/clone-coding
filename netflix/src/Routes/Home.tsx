@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useQuery } from "react-query";
+import { useNavigate, useMatch } from "react-router-dom";
 import styled from "styled-components";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useViewportScroll } from "framer-motion";
 import { GetMovieResult, getMovies } from "../api";
 import { makeImagePath } from "../utils";
 
 const Wrapper = styled.div`
   background-color: black;
+  padding-bottom: 200px;
 `;
 
 const Loader = styled.div`
@@ -81,6 +83,25 @@ const Info = styled(motion.div)`
   }
 `;
 
+const Modal = styled(motion.div)`
+  position: absolute;
+  width: 40vw;
+  height: 80vh;
+  background-color: tomato;
+  right: 0;
+  left: 0;
+  margin: 0 auto;
+`;
+
+const Overlay = styled(motion.div)`
+  position: fixed;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+`;
+
 const rowVariants = {
   hidden: {
     x: window.outerWidth,
@@ -123,6 +144,9 @@ const infoVariants = {
 const offset = 6;
 
 function Home() {
+  const navigate = useNavigate();
+  const movieMatch = useMatch("/movies/:movieId");
+  const { scrollY } = useViewportScroll();
   const [index, setIndex] = useState(0);
   const [leaving, setLeaving] = useState(false);
   const { data, isLoading } = useQuery<GetMovieResult>(
@@ -143,6 +167,14 @@ function Home() {
   };
 
   const toggleLeaving = () => setLeaving((prev) => !prev);
+
+  const onBoxClicked = (movieId: number) => {
+    navigate(`/movies/${movieId}`);
+  };
+
+  const onOverlayClicked = () => {
+    navigate(-1);
+  };
 
   return (
     <Wrapper>
@@ -172,7 +204,9 @@ function Home() {
                   .slice(offset * index, offset * index + offset)
                   .map((movie) => (
                     <Box
+                      layoutId={movie.id + ""}
                       key={movie.id}
+                      onClick={() => onBoxClicked(movie.id)}
                       whileHover="hover"
                       initial="normal"
                       variants={boxVariants}
@@ -186,6 +220,21 @@ function Home() {
               </Row>
             </AnimatePresence>
           </Slider>
+          <AnimatePresence>
+            {movieMatch && (
+              <>
+                <Overlay
+                  onClick={onOverlayClicked}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                />
+                <Modal
+                  layoutId={movieMatch.params.movieId}
+                  style={{ top: scrollY.get() + 100 }}
+                />
+              </>
+            )}
+          </AnimatePresence>
         </>
       )}
     </Wrapper>
