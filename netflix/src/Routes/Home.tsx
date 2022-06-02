@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "react-query";
-import { useNavigate, useMatch } from "react-router-dom";
+import { useNavigate, useMatch, PathMatch } from "react-router-dom";
 import styled from "styled-components";
 import { motion, AnimatePresence, useViewportScroll } from "framer-motion";
-import { GetMovieResult, getMovies } from "../api";
-import { makeImagePath } from "../utils";
+import { GetMovieResult, getMovies, GetVideoResult, getVideos } from "../api";
+import { makeImagePath, makeVideoPath } from "../utils";
 
 const Wrapper = styled.div`
   background-color: black;
@@ -173,16 +173,20 @@ function Home() {
   const { scrollY } = useViewportScroll();
   const [index, setIndex] = useState(0);
   const [leaving, setLeaving] = useState(false);
-  const { data, isLoading } = useQuery<GetMovieResult>(
+  const { data: movieData, isLoading: movieLoading } = useQuery<GetMovieResult>(
     ["movies", "nowPlaying"],
     getMovies
   );
+  const { data: videoData } = useQuery<GetVideoResult>(
+    ["videos", movieMatch?.params.movieId],
+    () => getVideos(movieMatch?.params.movieId ?? "")
+  );
 
   const increaseIndex = () => {
-    if (data) {
+    if (movieData) {
       if (leaving) return;
 
-      const totalMovies = data.results.length - 1;
+      const totalMovies = movieData.results.length - 1;
       const maxIndex = Math.ceil(totalMovies / offset) - 1;
 
       toggleLeaving();
@@ -202,22 +206,26 @@ function Home() {
 
   const clickedMovie =
     movieMatch?.params.movieId &&
-    data?.results.find(
+    movieData?.results.find(
       (movie) => String(movie.id) === movieMatch.params.movieId
     );
 
+  const videoKey =
+    clickedMovie &&
+    videoData?.results.find((video) => video.type === "Trailer")?.key;
+
   return (
     <Wrapper>
-      {isLoading ? (
+      {movieLoading ? (
         <Loader>Loading...</Loader>
       ) : (
         <>
           <Banner
             onClick={increaseIndex}
-            bgPhoto={makeImagePath(data?.results[0].backdrop_path || "")}
+            bgPhoto={makeImagePath(movieData?.results[0].backdrop_path || "")}
           >
-            <Title>{data?.results[0].title}</Title>
-            <Overview>{data?.results[0].overview}</Overview>
+            <Title>{movieData?.results[0].title}</Title>
+            <Overview>{movieData?.results[0].overview}</Overview>
           </Banner>
           <Slider>
             <AnimatePresence initial={false} onExitComplete={toggleLeaving}>
@@ -229,7 +237,7 @@ function Home() {
                 exit="exit"
                 transition={{ type: "tween", duration: 1 }}
               >
-                {data?.results
+                {movieData?.results
                   .slice(1)
                   .slice(offset * index, offset * index + offset)
                   .map((movie) => (
@@ -264,14 +272,17 @@ function Home() {
                 >
                   {clickedMovie && (
                     <>
-                      <ModalCover
-                        style={{
-                          backgroundImage: `linear-gradient(to top, black, transparent), url(${makeImagePath(
-                            clickedMovie.backdrop_path
-                          )}
-                          )`,
-                        }}
-                      />
+                      <ModalCover>
+                        <iframe
+                          width="100%"
+                          height="480"
+                          src={`${makeVideoPath(
+                            videoKey ?? ""
+                          )}? &autoplay=1&mute=1&amp;playlist=${videoKey}&loop=1&controls=0`}
+                          title="YouTube video player"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        ></iframe>
+                      </ModalCover>
                       <ModalTitle>{clickedMovie.title}</ModalTitle>
                       <ModalOverview>{clickedMovie.overview}</ModalOverview>
                     </>

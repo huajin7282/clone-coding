@@ -20,8 +20,23 @@ export interface GetMovieResult {
   total_results: number;
 }
 
+interface Video {
+  key: string;
+  type: string;
+}
+
+export interface GetVideoResult {
+  results: Video[];
+}
+
 export function getMovies() {
   return fetch(`${BASE_PATH}/movie/now_playing?api_key=${API_KEY}`).then(
+    (response) => response.json()
+  );
+}
+
+export function getVideos(id: string) {
+  return fetch(`${BASE_PATH}/movie/${id}/videos?api_key=${API_KEY}`).then(
     (response) => response.json()
   );
 }
