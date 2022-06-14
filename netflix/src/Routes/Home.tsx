@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "react-query";
-import { useNavigate, useMatch, PathMatch } from "react-router-dom";
+import { useNavigate, useMatch } from "react-router-dom";
 import styled from "styled-components";
 import { motion, AnimatePresence, useViewportScroll } from "framer-motion";
 import { GetMovieResult, getMovies, GetVideoResult, getVideos } from "../api";
 import { makeImagePath, makeVideoPath } from "../utils";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faAngleRight, faAngleLeft } from "@fortawesome/free-solid-svg-icons";
 
 const Wrapper = styled.div`
   background-color: black;
@@ -52,8 +54,23 @@ const Row = styled(motion.div)`
   width: 100%;
 `;
 
+const Angle = styled(FontAwesomeIcon)`
+  width: 40px;
+  height: 40px;
+  position: absolute;
+  top: 80px;
+  opacity: 0;
+  ${Row}:hover ~ & {
+    opacity: 1;
+  }
+  &:hover {
+    opacity: 1;
+    transform: scale(1.3);
+    cursor: pointer;
+  }
+`;
+
 const Box = styled(motion.div)<{ bgPhoto: string }>`
-  background-color: white;
   background-image: url(${(props) => props.bgPhoto});
   background-size: cover;
   background-position: center;
@@ -95,13 +112,6 @@ const Modal = styled(motion.div)`
   border-radius: 16px;
 `;
 
-const ModalCover = styled.div`
-  width: 100%;
-  height: 480px;
-  background-size: cover;
-  background-position: center center;
-`;
-
 const ModalTitle = styled.h2`
   position: relative;
   top: -132px;
@@ -130,12 +140,8 @@ const rowVariants = {
   hidden: {
     x: window.outerWidth,
   },
-  visible: {
-    x: 0,
-  },
-  exit: {
-    x: -window.outerWidth,
-  },
+  visible: { x: 0 },
+  exit: { x: -window.outerWidth },
 };
 
 const boxVariants = {
@@ -172,7 +178,6 @@ function Home() {
   const movieMatch = useMatch("/movies/:movieId");
   const { scrollY } = useViewportScroll();
   const [index, setIndex] = useState(0);
-  const [leaving, setLeaving] = useState(false);
   const { data: movieData, isLoading: movieLoading } = useQuery<GetMovieResult>(
     ["movies", "nowPlaying"],
     getMovies
@@ -182,19 +187,24 @@ function Home() {
     () => getVideos(movieMatch?.params.movieId ?? "")
   );
 
-  const increaseIndex = () => {
+  const handleIndex = (side: number) => {
     if (movieData) {
-      if (leaving) return;
-
       const totalMovies = movieData.results.length - 1;
-      const maxIndex = Math.ceil(totalMovies / offset) - 1;
+      const maxIndex = Math.floor(totalMovies / offset) - 1;
 
-      toggleLeaving();
-      setIndex((prev) => (prev === maxIndex ? 0 : prev + 1));
+      side > 0
+        ? (() => {
+            rowVariants.hidden.x = window.outerWidth;
+            rowVariants.exit.x = -window.outerWidth;
+            setIndex((prev) => (prev === maxIndex ? 0 : prev + 1));
+          })()
+        : (() => {
+            rowVariants.hidden.x = -window.outerWidth;
+            rowVariants.exit.x = window.outerWidth;
+            setIndex((prev) => (prev === 0 ? maxIndex : prev - 1));
+          })();
     }
   };
-
-  const toggleLeaving = () => setLeaving((prev) => !prev);
 
   const onBoxClicked = (movieId: number) => {
     navigate(`/movies/${movieId}`);
@@ -221,21 +231,20 @@ function Home() {
       ) : (
         <>
           <Banner
-            onClick={increaseIndex}
             bgPhoto={makeImagePath(movieData?.results[0].backdrop_path || "")}
           >
             <Title>{movieData?.results[0].title}</Title>
             <Overview>{movieData?.results[0].overview}</Overview>
           </Banner>
           <Slider>
-            <AnimatePresence initial={false} onExitComplete={toggleLeaving}>
+            <AnimatePresence initial={false}>
               <Row
                 key={index}
                 variants={rowVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                transition={{ type: "tween", duration: 1 }}
+                initial={rowVariants.hidden}
+                animate={rowVariants.visible}
+                exit={rowVariants.exit}
+                transition={{ duration: 1 }}
               >
                 {movieData?.results
                   .slice(1)
@@ -256,6 +265,16 @@ function Home() {
                     </Box>
                   ))}
               </Row>
+              <Angle
+                onClick={() => handleIndex(-window.outerWidth)}
+                icon={faAngleLeft}
+                style={{ left: "16px" }}
+              />
+              <Angle
+                onClick={() => handleIndex(window.outerWidth)}
+                icon={faAngleRight}
+                style={{ right: "16px" }}
+              />
             </AnimatePresence>
           </Slider>
           <AnimatePresence>
@@ -272,17 +291,15 @@ function Home() {
                 >
                   {clickedMovie && (
                     <>
-                      <ModalCover>
-                        <iframe
-                          width="100%"
-                          height="480"
-                          src={`${makeVideoPath(
-                            videoKey ?? ""
-                          )}? &autoplay=1&mute=1&amp;playlist=${videoKey}&loop=1&controls=0`}
-                          title="YouTube video player"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        ></iframe>
-                      </ModalCover>
+                      <iframe
+                        width="100%"
+                        height="480"
+                        src={`${makeVideoPath(
+                          videoKey ?? ""
+                        )}? &autoplay=1&amp;playlist=${videoKey}&loop=1&controls=0`}
+                        title="YouTube video player"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      ></iframe>
                       <ModalTitle>{clickedMovie.title}</ModalTitle>
                       <ModalOverview>{clickedMovie.overview}</ModalOverview>
                     </>
