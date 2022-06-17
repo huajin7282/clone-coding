@@ -1,16 +1,22 @@
 import { useState } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueries } from "react-query";
 import { useNavigate, useMatch } from "react-router-dom";
 import styled from "styled-components";
 import { motion, AnimatePresence, useViewportScroll } from "framer-motion";
-import { GetMovieResult, getMovies, GetVideoResult, getVideos } from "../api";
+import {
+  GetContentResult,
+  getContents,
+  GetVideoResult,
+  getVideos,
+  Content,
+  Video,
+} from "../api";
 import { makeImagePath, makeVideoPath } from "../utils";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faAngleRight, faAngleLeft } from "@fortawesome/free-solid-svg-icons";
 
 const Wrapper = styled.div`
   background-color: black;
-  padding-bottom: 200px;
 `;
 
 const Loader = styled.div`
@@ -41,9 +47,23 @@ const Overview = styled.p`
   width: 50%;
 `;
 
+const Contents = styled.div`
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  top: -150px;
+`;
+
 const Slider = styled.div`
   position: relative;
-  top: -100px;
+  height: 300px;
+
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    padding: 0 60px;
+  }
 `;
 
 const Row = styled(motion.div)`
@@ -52,13 +72,14 @@ const Row = styled(motion.div)`
   gap: 7.6px;
   position: absolute;
   width: 100%;
+  padding: 0 60px;
 `;
 
 const Angle = styled(FontAwesomeIcon)`
   width: 40px;
   height: 40px;
   position: absolute;
-  top: 80px;
+  top: 44%;
   opacity: 0;
   ${Row}:hover ~ & {
     opacity: 1;
@@ -175,110 +196,161 @@ const offset = 6;
 
 function Home() {
   const navigate = useNavigate();
-  const movieMatch = useMatch("/movies/:movieId");
+  const movieMatch = useMatch("/movie/:contentId");
+  const tvMatch = useMatch("/tv/:contentId");
+  const match = movieMatch || tvMatch;
   const { scrollY } = useViewportScroll();
-  const [index, setIndex] = useState(0);
-  const { data: movieData, isLoading: movieLoading } = useQuery<GetMovieResult>(
-    ["movies", "nowPlaying"],
-    getMovies
-  );
-  const { data: videoData } = useQuery<GetVideoResult>(
-    ["videos", movieMatch?.params.movieId],
-    () => getVideos(movieMatch?.params.movieId ?? "")
+  const [index, setIndex] = useState([0, 0, 0, 0]);
+
+  const list = [
+    { category: "movie", type: "popular", head: "Popular Movies" },
+    { category: "movie", type: "top_rated", head: "Top Rated Movies" },
+    { category: "tv", type: "popular", head: "Popular TV Shows" },
+    { category: "tv", type: "top_rated", head: "Top Rated TV Shows" },
+  ];
+
+  const contents = useQueries(
+    list.map((item) => {
+      return {
+        queryKey: [item.category, item.type],
+        queryFn: () => getContents(item.category, item.type),
+      };
+    })
   );
 
-  const handleIndex = (side: number) => {
-    if (movieData) {
-      const totalMovies = movieData.results.length - 1;
-      const maxIndex = Math.floor(totalMovies / offset) - 1;
+  const { data: video } = useQuery<GetVideoResult>(
+    ["video", match?.params.contentId],
+    () =>
+      getVideos(
+        match?.pathname.split("/")[1] ?? "",
+        match?.params.contentId ?? ""
+      )
+  );
+
+  const handleIndex = (data: GetContentResult, side: number, idx: number) => {
+    if (data) {
+      const totalContents = data.results.length - 1;
+      const maxIndex = Math.floor(totalContents / offset) - 1;
 
       side > 0
         ? (() => {
             rowVariants.hidden.x = window.outerWidth;
             rowVariants.exit.x = -window.outerWidth;
-            setIndex((prev) => (prev === maxIndex ? 0 : prev + 1));
+            setIndex((prev) =>
+              prev.map((count, i) =>
+                i === idx ? (count === maxIndex ? 0 : count + 1) : count
+              )
+            );
           })()
         : (() => {
             rowVariants.hidden.x = -window.outerWidth;
             rowVariants.exit.x = window.outerWidth;
-            setIndex((prev) => (prev === 0 ? maxIndex : prev - 1));
+            setIndex((prev) =>
+              prev.map((count, i) =>
+                i === idx ? (count === 0 ? maxIndex : count - 1) : count
+              )
+            );
           })();
     }
   };
 
-  const onBoxClicked = (movieId: number) => {
-    navigate(`/movies/${movieId}`);
+  const onBoxClicked = (category: string, contentId: number) => {
+    navigate(`/${category}/${contentId}`);
   };
 
   const onOverlayClicked = () => {
     navigate(-1);
   };
 
-  const clickedMovie =
-    movieMatch?.params.movieId &&
-    movieData?.results.find(
-      (movie) => String(movie.id) === movieMatch.params.movieId
-    );
+  const clickedContent =
+    match &&
+    contents
+      .map((item) =>
+        item.data.results.find(
+          (content: Content) => String(content.id) === match.params.contentId
+        )
+      )
+      .find((clicked) => clicked !== undefined);
 
   const videoKey =
-    clickedMovie &&
-    videoData?.results.find((video) => video.type === "Trailer")?.key;
+    match &&
+    video?.results.find((video: Video) => video.type === "Trailer")?.key;
 
   return (
     <Wrapper>
-      {movieLoading ? (
+      {contents.some((result) => result.isLoading) ? (
         <Loader>Loading...</Loader>
       ) : (
         <>
           <Banner
-            bgPhoto={makeImagePath(movieData?.results[0].backdrop_path || "")}
+            bgPhoto={makeImagePath(
+              contents[0].data?.results[0].backdrop_path || ""
+            )}
           >
-            <Title>{movieData?.results[0].title}</Title>
-            <Overview>{movieData?.results[0].overview}</Overview>
+            <Title>{contents[0].data?.results[0].title}</Title>
+            <Overview>{contents[0].data?.results[0].overview}</Overview>
           </Banner>
-          <Slider>
-            <AnimatePresence initial={false}>
-              <Row
-                key={index}
-                variants={rowVariants}
-                initial={rowVariants.hidden}
-                animate={rowVariants.visible}
-                exit={rowVariants.exit}
-                transition={{ duration: 1 }}
-              >
-                {movieData?.results
-                  .slice(1)
-                  .slice(offset * index, offset * index + offset)
-                  .map((movie) => (
-                    <Box
-                      layoutId={String(movie.id)}
-                      key={movie.id}
-                      onClick={() => onBoxClicked(movie.id)}
-                      whileHover="hover"
-                      initial="normal"
-                      variants={boxVariants}
-                      bgPhoto={makeImagePath(movie.backdrop_path, "w500")}
+          <Contents>
+            {list.map((item, idx) => (
+              <>
+                <Slider>
+                  <h1>{item.head}</h1>
+                  <AnimatePresence initial={false}>
+                    <Row
+                      key={`${idx}_${index[idx]}`}
+                      variants={rowVariants}
+                      initial={rowVariants.hidden}
+                      animate={rowVariants.visible}
+                      exit={rowVariants.exit}
+                      transition={{ duration: 1 }}
                     >
-                      <Info variants={infoVariants}>
-                        <h4>{movie.title}</h4>
-                      </Info>
-                    </Box>
-                  ))}
-              </Row>
-              <Angle
-                onClick={() => handleIndex(-window.outerWidth)}
-                icon={faAngleLeft}
-                style={{ left: "16px" }}
-              />
-              <Angle
-                onClick={() => handleIndex(window.outerWidth)}
-                icon={faAngleRight}
-                style={{ right: "16px" }}
-              />
-            </AnimatePresence>
-          </Slider>
+                      {contents[idx].data?.results
+                        .slice(
+                          offset * index[idx],
+                          offset * index[idx] + offset
+                        )
+                        .map((content: Content) => (
+                          <Box
+                            layoutId={String(content.id)}
+                            key={content.id}
+                            onClick={() =>
+                              onBoxClicked(item.category, content.id)
+                            }
+                            whileHover="hover"
+                            initial="normal"
+                            variants={boxVariants}
+                            bgPhoto={makeImagePath(
+                              content.backdrop_path,
+                              "w500"
+                            )}
+                          >
+                            <Info variants={infoVariants}>
+                              <h4>{content.title || content.name}</h4>
+                            </Info>
+                          </Box>
+                        ))}
+                    </Row>
+                  </AnimatePresence>
+                  <Angle
+                    onClick={() =>
+                      handleIndex(contents[idx].data, -window.outerWidth, idx)
+                    }
+                    icon={faAngleLeft}
+                    style={{ left: "16px" }}
+                  />
+                  <Angle
+                    onClick={() =>
+                      handleIndex(contents[idx].data, window.outerWidth, idx)
+                    }
+                    icon={faAngleRight}
+                    style={{ right: "16px" }}
+                  />
+                </Slider>
+              </>
+            ))}
+          </Contents>
           <AnimatePresence>
-            {movieMatch && (
+            {match && (
               <>
                 <Overlay
                   onClick={onOverlayClicked}
@@ -286,24 +358,22 @@ function Home() {
                   exit={{ opacity: 0 }}
                 />
                 <Modal
-                  layoutId={movieMatch.params.movieId}
+                  layoutId={match?.params.contentId}
                   style={{ top: scrollY.get() + 100 }}
                 >
-                  {clickedMovie && (
-                    <>
-                      <iframe
-                        width="100%"
-                        height="480"
-                        src={`${makeVideoPath(
-                          videoKey ?? ""
-                        )}? &autoplay=1&amp;playlist=${videoKey}&loop=1&controls=0`}
-                        title="YouTube video player"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      ></iframe>
-                      <ModalTitle>{clickedMovie.title}</ModalTitle>
-                      <ModalOverview>{clickedMovie.overview}</ModalOverview>
-                    </>
-                  )}
+                  <>
+                    <iframe
+                      width="100%"
+                      height="480"
+                      src={`${makeVideoPath(
+                        videoKey ?? ""
+                      )}? &autoplay=1&amp;playlist=${videoKey}&loop=1&controls=0`}
+                      title="YouTube video player"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    ></iframe>
+                    <ModalTitle>{clickedContent.title}</ModalTitle>
+                    <ModalOverview>{clickedContent.overview}</ModalOverview>
+                  </>
                 </Modal>
               </>
             )}

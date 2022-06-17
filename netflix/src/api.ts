@@ -1,26 +1,27 @@
 const API_KEY = "5a8a70f59f8369c5bbb8b23cb93600f0";
 const BASE_PATH = "https://api.themoviedb.org/3";
 
-interface Movie {
+export interface Content {
   backdrop_path: string;
   id: number;
   poster_path: string;
   title: string;
+  name: string;
   overview: string;
 }
 
-export interface GetMovieResult {
+export interface GetContentResult {
   dates: {
     maximum: string;
     minimum: string;
   };
   page: number;
-  results: Movie[];
+  results: Content[];
   total_pages: number;
   total_results: number;
 }
 
-interface Video {
+export interface Video {
   key: string;
   type: string;
 }
@@ -29,14 +30,14 @@ export interface GetVideoResult {
   results: Video[];
 }
 
-export function getMovies() {
-  return fetch(`${BASE_PATH}/movie/now_playing?api_key=${API_KEY}`).then(
+export function getContents(category: string, type: string) {
+  return fetch(`${BASE_PATH}/${category}/${type}?api_key=${API_KEY}`).then(
     (response) => response.json()
   );
 }
 
-export function getVideos(id: string) {
-  return fetch(`${BASE_PATH}/movie/${id}/videos?api_key=${API_KEY}`).then(
+export function getVideos(category: string, id: string) {
+  return fetch(`${BASE_PATH}/${category}/${id}/videos?api_key=${API_KEY}`).then(
     (response) => response.json()
   );
 }

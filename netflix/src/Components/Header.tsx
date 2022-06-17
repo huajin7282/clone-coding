@@ -137,16 +137,22 @@ function Header() {
         <Menu>
           <Item>
             <StyledLink isActive={loaction.pathname === "/"} to="">
-              홈
+              Home
             </StyledLink>
           </Item>
           <Item>
-            <StyledLink isActive={loaction.pathname === "/tv"} to="tv">
-              시리즈
+            <StyledLink isActive={loaction.pathname === "/movies"} to="movies">
+              Movie
             </StyledLink>
           </Item>
-          <Item>영화</Item>
-          <Item>NEW! 요즘 대세 콘텐츠</Item>
+          <Item>
+            <StyledLink
+              isActive={loaction.pathname === "/tv_shows"}
+              to="tv_shows"
+            >
+              TV Show
+            </StyledLink>
+          </Item>
         </Menu>
       </Col>
       <Col>
